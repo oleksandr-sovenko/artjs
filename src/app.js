@@ -193,7 +193,7 @@ if (process.argv[2] === 'install') {
 		'Type=simple\n' +
 		'Restart=always\n' +
 		'RestartSec=1\n' +
-		'User=artjs\n' +
+		'User=root\n' +
 		'ExecStart=' + process.argv[0] + ' serve\n' +
 		'' +
 		'[Install]\n' +
