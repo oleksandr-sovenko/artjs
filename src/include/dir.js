@@ -26,62 +26,74 @@ const	fs   = require('fs'),
 
 module.exports = {
 	exists: function(filename) {
-		return fs.existsSync(path.dirname(filename));
+		if (typeof filename === 'string')
+			return fs.existsSync(path.dirname(filename));
+		else
+			throw new Error('DIR.exists: Argument have to be string!');
 	},
 
 	list: function(directory) {
-    	var dirs  = [],
-    		files = [];
+		if (typeof directory === 'string') {
+			var dirs  = [],
+				files = [];
 
-    	if (fs.existsSync(directory)) {
-        	fs.readdirSync(directory).forEach(function(filename) {
-        		var stat = fs.statSync(directory + '/' + filename);
+			if (fs.existsSync(directory)) {
+				fs.readdirSync(directory).forEach(function(filename) {
+					var stat = fs.statSync(directory + '/' + filename);
 
-        		if (stat.isDirectory())
-					dirs.push({
-						name      : filename,
-						type      : 'dir',
-						created_at: stat.atime,
-						updated_at: stat.mtime,
-						size      : stat.size,
-					});
-				else
-					files.push({
-						name      : filename,
-						type      : 'file',
-						created_at: stat.atime,
-						updated_at: stat.mtime,
-						size      : stat.size,
-					});
-        	});
-    	}
+					if (stat.isDirectory())
+						dirs.push({
+							name      : filename,
+							type      : 'dir',
+							created_at: stat.atime,
+							updated_at: stat.mtime,
+							size      : stat.size,
+						});
+					else
+						files.push({
+							name      : filename,
+							type      : 'file',
+							created_at: stat.atime,
+							updated_at: stat.mtime,
+							size      : stat.size,
+						});
+				});
+			}
 
-    	return dirs.concat(files);
+			return dirs.concat(files);
+		} else
+			throw new Error('DIR.list: Argument have to be string!');
 	},
 
 	create: function(directory) {
-		fs.mkdirSync(directory, { recursive: true });
+		if (typeof directory === 'string')
+			fs.mkdirSync(directory, { recursive: true });
+		else
+			throw new Error('DIR.create: Argument have to be string!');
 	},
 
 	remove: function(directory) {
-		var list;
+		if (typeof directory === 'string') {
+			var list;
 
-		list = fs.readdirSync(directory);
-		for (var i = 0; i < list.length; i++) {
-			var filename = path.join(directory, list[i]),
-				stat = fs.statSync(filename);
+			list = fs.readdirSync(directory);
+			for (var i = 0; i < list.length; i++) {
+				var filename = path.join(directory, list[i]),
+					stat = fs.statSync(filename);
 
-			if(filename == '.' || filename == '..') {
-				// pass these files
-			} else if(stat.isDirectory()) {
-				// rmdir recursively
-				this.remove(filename);
-			} else {
-				// rm fiilename
-				fs.unlinkSync(filename);
+				if(filename == '.' || filename == '..') {
+					// pass these files
+				} else if(stat.isDirectory()) {
+					// rmdir recursively
+					this.remove(filename);
+				} else {
+					// rm fiilename
+					fs.unlinkSync(filename);
+				}
 			}
-		}
 
-		fs.rmdirSync(directory);
+			fs.rmdirSync(directory);
+		} else
+			throw new Error('DIR.remove: Argument have to be string!');
 	}
 };
