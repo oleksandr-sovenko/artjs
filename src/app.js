@@ -20,6 +20,96 @@
 // SOFTWARE.
 
 
+/** NOTES
+
+// Inter Process Communications {
+	const connectedSockets = new Set();
+
+	// connectedSockets.broadcast = function(data, except) {
+	//     for (let sock of this) {
+	//         if (sock !== except) {
+	//             sock.write(data);
+	//         }
+	//     }
+	// }
+
+	var server = net.createServer(function(ipc) {
+		connectedSockets.add(ipc);
+
+		ipc.on('data',function(data) {
+			var message = {};
+
+			try {
+				message = JSON.parse(data.toString());
+			} catch(e) {
+				message = {};
+			}
+
+			if (message.type !== undefined) {
+				if (message.type === 'console' || message.type === 'error') {
+					log.push(message);
+					while (log.length > 1000) {
+						log.shift();
+					}
+
+					fastify_ws_sendall(data.toString());
+				}
+			}
+		});
+
+		ipc.on('end', function() {
+	    	connectedSockets.delete(ipc);
+		});
+	});
+
+	server.on('error', function (e) {
+		if (e.code == 'EADDRINUSE') {
+	    	var clientSocket = new net.Socket();
+
+	    	clientSocket.on('error', function(e) {
+	        	if (e.code == 'ECONNREFUSED') {
+	            	fs.unlinkSync(CONFIG.socket.ipc);
+
+	            	server.listen(CONFIG.socket.ipc, function() {
+
+	            	});
+	        	}
+	    	});
+
+	    	clientSocket.connect({ path: CONFIG.socket.ipc }, function() {
+	        	process.exit();
+	    	});
+		}
+	});
+
+	server.listen(CONFIG.socket.ipc, function() {
+
+	});
+// }
+
+// Inter Process Communications {
+	var ipc = net.connect({ path: CONFIG.socket.ipc }, function() {
+
+	});
+
+	ipc.on('data', function(data) {
+		//GPIO.emit('change', data);
+	});
+
+	ipc.on('end', function() {
+		// console.log('disconnected from server');
+	});
+
+	ipc.on('error', function(err) {
+		console.log(err);
+	});
+// }
+
+ipc.write(JSON.stringify({ type: 'error', process: { id: filename.replace(/.*\//g, ''), pid: process.pid }, message: message }));
+
+*/
+
+
 const	net          = require('net'),
 		vm           = require('vm'),
 		os           = require('os'),
@@ -37,6 +127,13 @@ const	net          = require('net'),
 		DIR          = require('./include/dir'),
 
 		{ GPIO, BMP280, HC_SC04 } = require('./modules/core');
+
+
+const 	config = {
+			dir: {
+				root: '/opt/artjs',
+			}
+		};
 
 
 /**
@@ -95,19 +192,53 @@ if (process.argv[2] === '-h') {
  *
  *	@command -b+
  */
-if (process.argv[2] === '-b+') {
-	console.log(process.argv);
+if (process.argv[2] === '-b+' || process.argv[2] === '-b-') {
+	if (process.argv[3] !== undefined) {
+		const 	filename   = process.argv[3],
+				dirname    = path.dirname(filename),
+				basename   = path.basename(filename),
+				script     = path.resolve(dirname, basename),
+				background = config.dir.root + '/run/background';
+
+		try {
+			if (!fs.existsSync(background))
+        		fs.mkdirSync(background, { recursive: true });
+
+			for (const file of fs.readdirSync(background)) {
+				const data = JSON.parse(fs.readFileSync(background + '/' + file));
+				if (data.script === script) {
+					if (process.argv[2] === '-b+') {
+						console.log('The script "' + script + '" is already in use.');
+						process.exit();
+					}
+
+					if (process.argv[2] === '-b-') {
+						fs.unlinkSync(background + '/' + file);
+						console.log('The script "' + script + '" removed.');
+						process.exit();
+					}
+				}
+			}
+
+			if (process.argv[2] === '-b+') {
+				fs.writeFileSync(background + '/' + HASH.uuid4(), JSON.stringify({
+					script: path.resolve(dirname, basename)
+				}));
+
+				console.log('The script "' + script + '" added to background.');
+			}
+
+			if (process.argv[2] === '-b-') {
+				console.log('The script "' + script + '" not found.');
+			}
+		} catch(e) {
+			throw new Error('Something went wrong!');
+		}
+	} else {
+
+	}
+
 	process.exit();
-}
-
-
-/**
- *
- *
- *	@command -b-
- */
-if (process.argv[2] === '-b-') {
-
 }
 
 
@@ -230,5 +361,7 @@ if (/\.js/.test(process.argv[2])) {
  *	@command serve
  */
 if (process.argv[2] === 'serve') {
+	setInterval(function() {
 
+	}, 3 * 1000);
 }
