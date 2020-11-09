@@ -196,7 +196,7 @@ void signalHandler(int signum) {
 
 
 Napi::Object Module(Napi::Env env, Napi::Object exports) {
-	Napi::Object GPIO    = Napi::Object::New(env);
+	Napi::Object GPIO = Napi::Object::New(env);
 
 	GPIO.Set(Napi::String::New(env, "mode"),
 		Napi::Function::New(env, GPIO_Mode));

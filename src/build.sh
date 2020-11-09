@@ -45,5 +45,5 @@ ln -svf artjs-node12.2.0-linux-armv7-1.0 artjs
 
 # pack
 cd ${CWD}/../
-tar Jcfv artjs-latest.upd bin/ modules/
+# tar Jcfv artjs-latest.upd bin/ modules/
 

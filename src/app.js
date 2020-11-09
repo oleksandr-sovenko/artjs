@@ -20,113 +20,23 @@
 // SOFTWARE.
 
 
-/** NOTES
+const	net       = require('net'),
+		vm        = require('vm'),
+		os        = require('os'),
+		fs        = require('fs'),
+		moment    = require('moment'),
+		path      = require('path'),
 
-// Inter Process Communications {
-	const connectedSockets = new Set();
+		{ CLOUD } = require('./include/cloud'),
+		W1        = require('./include/w1'),
+		MATH      = require('./include/math'),
+		DATETIME  = require('./include/datetime'),
+		HASH      = require('./include/hash'),
+		FILE      = require('./include/file'),
+		DIR       = require('./include/dir'),
 
-	// connectedSockets.broadcast = function(data, except) {
-	//     for (let sock of this) {
-	//         if (sock !== except) {
-	//             sock.write(data);
-	//         }
-	//     }
-	// }
-
-	var server = net.createServer(function(ipc) {
-		connectedSockets.add(ipc);
-
-		ipc.on('data',function(data) {
-			var message = {};
-
-			try {
-				message = JSON.parse(data.toString());
-			} catch(e) {
-				message = {};
-			}
-
-			if (message.type !== undefined) {
-				if (message.type === 'console' || message.type === 'error') {
-					log.push(message);
-					while (log.length > 1000) {
-						log.shift();
-					}
-
-					fastify_ws_sendall(data.toString());
-				}
-			}
-		});
-
-		ipc.on('end', function() {
-	    	connectedSockets.delete(ipc);
-		});
-	});
-
-	server.on('error', function (e) {
-		if (e.code == 'EADDRINUSE') {
-	    	var clientSocket = new net.Socket();
-
-	    	clientSocket.on('error', function(e) {
-	        	if (e.code == 'ECONNREFUSED') {
-	            	fs.unlinkSync(CONFIG.socket.ipc);
-
-	            	server.listen(CONFIG.socket.ipc, function() {
-
-	            	});
-	        	}
-	    	});
-
-	    	clientSocket.connect({ path: CONFIG.socket.ipc }, function() {
-	        	process.exit();
-	    	});
-		}
-	});
-
-	server.listen(CONFIG.socket.ipc, function() {
-
-	});
-// }
-
-// Inter Process Communications {
-	var ipc = net.connect({ path: CONFIG.socket.ipc }, function() {
-
-	});
-
-	ipc.on('data', function(data) {
-		//GPIO.emit('change', data);
-	});
-
-	ipc.on('end', function() {
-		// console.log('disconnected from server');
-	});
-
-	ipc.on('error', function(err) {
-		console.log(err);
-	});
-// }
-
-ipc.write(JSON.stringify({ type: 'error', process: { id: filename.replace(/.*\//g, ''), pid: process.pid }, message: message }));
-
-*/
-
-
-const	net          = require('net'),
-		vm           = require('vm'),
-		os           = require('os'),
-		fs           = require('fs'),
-		moment       = require('moment'),
-		path         = require('path'),
-		{ execSync } = require('child_process'),
-
-		{ CLOUD }    = require('./include/cloud'),
-		W1           = require('./include/w1'),
-		MATH         = require('./include/math'),
-		DATETIME     = require('./include/datetime'),
-		HASH         = require('./include/hash'),
-		FILE         = require('./include/file'),
-		DIR          = require('./include/dir'),
-
-		{ GPIO, BMP280, HC_SC04 } = require('./modules/core');
+		{ GPIO, BMP280, HC_SC04 } = require('./modules/core'),
+		{ execSync, spawn }       = require('child_process');
 
 
 const 	config = {
@@ -138,8 +48,38 @@ const 	config = {
 
 /**
  *
- *
- *
+ */
+function backgroundGetFiles() {
+	var background = config.dir.root + '/run/background',
+		files      = []; 
+
+	try {
+		if (!fs.existsSync(background))
+			fs.mkdirSync(background, { recursive: true });
+	} catch (e) {
+		return [];
+	}
+
+	for (const file of fs.readdirSync(background)) {
+		var data;
+
+		try {
+			data = JSON.parse(fs.readFileSync(background + '/' + file));
+			data.uuid = file; 
+		} catch(e) {
+			data = null;
+		}
+
+		if (data !== null)
+			files.push(data);
+	}
+
+	return files;
+}
+
+
+/**
+ *	Default
  */
 if (process.argv.length == 2) {
 	console.log("Try 'artjs -h' for more information.");
@@ -148,8 +88,6 @@ if (process.argv.length == 2) {
 
 
 /**
- *
- *
  *	@command --processes
  */
 if (process.argv[2] === '-h') {
@@ -188,9 +126,7 @@ if (process.argv[2] === '-h') {
 
 
 /**
- *
- *
- *	@command -b+
+ *	@command -b+ and -b-
  */
 if (process.argv[2] === '-b+' || process.argv[2] === '-b-') {
 	if (process.argv[3] !== undefined) {
@@ -302,6 +238,29 @@ if (/\.js/.test(process.argv[2])) {
 	var filename = process.argv[2],
 		jscode = '';
 
+	if (process.getuid() == 0) {
+		process.setuid(1000);
+	} else {
+		// Inter Process Communications {
+			//var ipc = net.connect({ path: CONFIG.socket.ipc });
+		
+			// ipc.on('data', function(data) {
+			// 	//GPIO.emit('change', data);
+			// });
+		
+			// ipc.on('end', function() {
+			// 	// console.log('disconnected from server');
+			// });
+		
+			// ipc.on('error', function(err) {
+			// 	console.log(err);
+			// });
+		// }
+	
+		//ipc.write(JSON.stringify({ type: 'error', process: { id: filename.replace(/.*\//g, ''), pid: process.pid }, message: message }));
+		// process.getuid();
+	}
+
 	if (fs.existsSync(filename))
 		jscode = fs.readFileSync(filename, 'utf8');
 	else
@@ -361,7 +320,75 @@ if (/\.js/.test(process.argv[2])) {
  *	@command serve
  */
 if (process.argv[2] === 'serve') {
-	setInterval(function() {
+	// Inter Process Communications {
+		// const connectedSockets = new Set();
+	
+		// var server = net.createServer(function(ipc) {
+		// 	connectedSockets.add(ipc);
+	
+		// 	ipc.on('data',function(data) {
+		// 		console.log(data);
+		// 	});
+	
+		// 	ipc.on('end', function() {
+		//     	connectedSockets.delete(ipc);
+		// 	});
+		// });
+	
+		// server.on('error', function (e) {
+		// 	if (e.code == 'EADDRINUSE') {
+		//     	var clientSocket = new net.Socket();
+	
+		//     	clientSocket.on('error', function(e) {
+		//         	if (e.code == 'ECONNREFUSED') {
+		//             	fs.unlinkSync(CONFIG.socket.ipc);
+	
+		//             	server.listen(CONFIG.socket.ipc, function() { });
+		//         	}
+		//     	});
+	
+		//     	clientSocket.connect({ path: CONFIG.socket.ipc }, function() {
+		//         	process.exit();
+		//     	});
+		// 	}
+		// });
+	
+		// server.listen(CONFIG.socket.ipc, function() { });
+	// }
 
+	setInterval(function() {
+		var rundir = config.dir.root + '/run',
+			files  = backgroundGetFiles();
+
+		for(var file of files) {
+			var execute = false,
+				pidfile = rundir + '/' + file.uuid + '.pid';
+
+			if (!fs.existsSync(pidfile)) {
+				execute = true;
+			} else {
+				var pid = parseInt(fs.readFileSync(pidfile));
+
+				if (!fs.existsSync('/proc/' + pid + '/mem'))
+					execute = true;
+			}
+
+			if (execute) {
+				var script = spawn(
+					process.argv[0],
+					[process.argv[1], file.script], {
+						stdio: [
+							process.stdin,
+							fs.openSync('/tmp/' + file.uuid + '.log', 'a'),
+							fs.openSync('/tmp/' + file.uuid + '.log', 'a')
+						],
+						// uid: 0,
+						// gid: 0,
+					}
+				);
+				fs.writeFileSync(pidfile, script.pid);
+				console.log(script.spawnargs);
+			}
+		}
 	}, 3 * 1000);
 }
