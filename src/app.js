@@ -19,6 +19,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//console.log(module.paths);
+//module.paths.push('../modules');
+//console.log(module.paths);
+
+let serialportgsm = require('@pake/serialport-gsm')
+//console.log(serialportgsm);
+serialportgsm.list((err, result) => {
+    console.log(result)
+})
 
 const	net       = require('net'),
 		vm        = require('vm'),
