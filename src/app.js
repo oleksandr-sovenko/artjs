@@ -22,27 +22,127 @@
 //console.log(module.paths);
 //module.paths.push('../modules');
 //console.log(module.paths);
-
+/*
 let serialportgsm = require('@pake/serialport-gsm')
 //console.log(serialportgsm);
-serialportgsm.list((err, result) => {
-    console.log(result)
+// serialportgsm.list((err, result) => {
+// 	console.log(result)
+// })
+
+let modem = serialportgsm.Modem();
+let options = {
+    baudRate: 115200,
+    dataBits: 8,
+    stopBits: 1,
+    parity: 'none',
+    rtscts: false,
+    xon: false,
+    xoff: false,
+    xany: false,
+    autoDeleteOnReceive: true,
+    enableConcatenation: true,
+    incomingCallIndication: true,
+    incomingSMSIndication: true,
+    deliveryReport: true,
+    pin: '',
+    customInitCommand: '',
+    logger: console
+}
+modem.open('/dev/ttyS1');
+modem.on('open', data => {
+    modem.setModemMode(function(data) {
+    	console.log(data);
+    }, 'PDU');
+
+    modem.getNetworkSignal(function(data) {
+    	console.log(data);
+    });
+
+    modem.getOwnNumber(function(data) {
+    	console.log(data);
+    });
+
+	modem.getSimInbox(function(data) {
+		console.log(data);
+	});
+
+    // modem.sendSMS('+380969152964', 'Hello there Zab!', true, function(data) {
+    // 	console.log(data);
+    // });
+
+ //    modem.getModemSerial(function(data) {
+ //    	console.log(data);
+ //    })
+
+	// modem.executeCommand('AT+GMR', function(data) {
+	// 	console.log(data);
+	// });
+
+
+	// commandParser = modem.executeCommand('AT+GMM', (result, err) => {
+	// 	if (err) {
+ //        	console.log(`Error - ${err}`);
+ //    	} else {
+ //        	console.log(`Result ${JSON.stringify(result)}`);
+ //    	}
+ //    });
+
+ //    commandParser.logic = function(dataLine) {
+ //    	if (/SIMCOM_/.test(dataLine)) {
+	// 		return {
+	// 			resultData: {
+	// 				status: 'success',
+	// 				request: 'executeCommand',
+	// 				data: { 'result': dataLine }
+	// 			},
+	// 			returnResult: true
+	// 		}
+	// 	}
+	// };
+
+
+	// AT+CREG?
+	// commandParser = modem.executeCommand('AT+CREG=0', (result, err) => {
+	// 	if (err) {
+ //        	console.log(`Error - ${err}`);
+ //    	} else {
+ //        	console.log(`Result ${JSON.stringify(result)}`);
+ //    	}
+ //    });
+
+ //    commandParser.logic = function(dataLine) {
+ //    	console.log(dataLine);
+
+	// 	//   	if (/SIMCOM_/.test(dataLine)) {
+	// 	// 	return {
+	// 	// 		resultData: {
+	// 	// 			status: 'success',
+	// 	// 			request: 'executeCommand',
+	// 	// 			data: { 'result': dataLine }
+	// 	// 		},
+	// 	// 		returnResult: true
+	// 	// 	}
+	// 	// }
+	// };
 })
+*/
+//process.exit();
 
-const	net       = require('net'),
-		vm        = require('vm'),
-		os        = require('os'),
-		fs        = require('fs'),
-		moment    = require('moment'),
-		path      = require('path'),
+const	net    = require('net'),
+		vm     = require('vm'),
+		os     = require('os'),
+		fs     = require('fs'),
+		moment = require('moment'),
+		path   = require('path'),
 
-		{ CLOUD } = require('./include/cloud'),
-		W1        = require('./include/w1'),
-		MATH      = require('./include/math'),
-		DATETIME  = require('./include/datetime'),
-		HASH      = require('./include/hash'),
-		FILE      = require('./include/file'),
-		DIR       = require('./include/dir'),
+		{ CLOUD }     = require('./include/cloud'),
+		{ BLUETOOTH } = require('./include/bluetooth'),
+		W1            = require('./include/w1'),
+		MATH          = require('./include/math'),
+		DATETIME      = require('./include/datetime'),
+		HASH          = require('./include/hash'),
+		FILE          = require('./include/file'),
+		DIR           = require('./include/dir'),
 
 		{ GPIO, BMP280, HC_SC04 } = require('./modules/core'),
 		{ execSync, spawn }       = require('child_process');
@@ -60,7 +160,7 @@ const 	config = {
  */
 function backgroundGetFiles() {
 	var background = config.dir.root + '/run/background',
-		files      = []; 
+		files      = [];
 
 	try {
 		if (!fs.existsSync(background))
@@ -247,28 +347,28 @@ if (/\.js/.test(process.argv[2])) {
 	var filename = process.argv[2],
 		jscode = '';
 
-	if (process.getuid() == 0) {
-		process.setuid(1000);
-	} else {
+	// if (process.getuid() == 0) {
+	// 	process.setuid(1000);
+	// } else {
 		// Inter Process Communications {
 			//var ipc = net.connect({ path: CONFIG.socket.ipc });
-		
+
 			// ipc.on('data', function(data) {
 			// 	//GPIO.emit('change', data);
 			// });
-		
+
 			// ipc.on('end', function() {
 			// 	// console.log('disconnected from server');
 			// });
-		
+
 			// ipc.on('error', function(err) {
 			// 	console.log(err);
 			// });
 		// }
-	
+
 		//ipc.write(JSON.stringify({ type: 'error', process: { id: filename.replace(/.*\//g, ''), pid: process.pid }, message: message }));
 		// process.getuid();
-	}
+	// }
 
 	if (fs.existsSync(filename))
 		jscode = fs.readFileSync(filename, 'utf8');
@@ -307,6 +407,7 @@ if (/\.js/.test(process.argv[2])) {
 			FILE          : FILE,
 			HASH          : HASH,
 			CLOUD         : CLOUD,
+			BLUETOOTH     : BLUETOOTH,
 
 			exec          : execSync,
 
